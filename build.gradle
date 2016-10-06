@@ -1,0 +1,122 @@
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+
+    dependencies {
+        if(!project.hasProperty("bootstrap")) {
+            classpath group: "me.seeber.gradle", name: "gradle-bintray-config", version: "1.0.0"
+            classpath group: "me.seeber.gradle", name: "gradle-github-config", version: "1.0.0"
+            classpath group: "me.seeber.gradle", name: "gradle-license-config", version: "1.0.0"
+            classpath group: "me.seeber.gradle", name: "gradle-plugin-publish-config", version: "1.0.0"
+        }
+    }
+}
+
+version = "1.0.0"
+group = "me.seeber.gradle"
+description = "Default configuration for Gradle builds"
+
+if(project.hasProperty("bootstrap")) {
+    apply plugin: "java"
+    apply plugin: "groovy"
+    apply plugin: "maven"
+}
+else {
+    apply plugin: "me.seeber.distribution.bintray"
+    apply plugin: "me.seeber.distribution.gradle-plugin"
+    apply plugin: "me.seeber.distribution.maven"
+    apply plugin: "me.seeber.ide.eclipse"
+    apply plugin: "me.seeber.project.gradle-plugin"
+    apply plugin: "me.seeber.repository.github"
+    apply plugin: "me.seeber.setup.license"
+    apply plugin: "me.seeber.validation.checkstyle"
+
+    model {
+        projectConfig {
+            organization.name = "Jochen Seeber"
+            inceptionYear = 2016
+            license {
+                id = "BSD 2-Clause"
+                exclude "*.prefs"
+            }
+        }
+
+        githubConfig { user = "jochenseeber" }
+    }
+
+    pluginBundle {
+        tags = ["build", "configuration"]
+
+        plugins {
+            baseProjectPlugin {
+                id = "me.seeber.project.base"
+                displayName = "Configuration for Gradle Builds"
+            }
+
+            mavenDistributionPlugin {
+                id = "me.seeber.distribution.maven"
+                displayName = "Configuration for Maven Distribution"
+            }
+
+            eclipseIdePlugin {
+                id = "me.seeber.ide.eclipse"
+                displayName = "Configuration for Eclipse IDE"
+            }
+
+            annotationProjectPlugin {
+                id = "me.seeber.project.annotations"
+                displayName = "Configuration for External Annotations Projects"
+            }
+
+            gradlePluginProjectPlugin {
+                id = "me.seeber.project.gradle-plugin"
+                displayName = "Configuration for Gradle Plugin Projects"
+            }
+
+            groovyProjectPlugin {
+                id = "me.seeber.project.groovy"
+                displayName = "Configuration for Groovy Projects"
+            }
+
+            javaProjectPlugin {
+                id = "me.seeber.project.java"
+                displayName = "Configuration for Java Projects"
+            }
+        }
+    }
+}
+
+dependencies {
+    compile(group: "com.google.guava", name: "guava", version: "19.0")
+    compile(group: "net.bytebuddy", name: "byte-buddy", version: "1.5.7")
+
+    if(project.hasProperty("bootstrap")) {
+        compile(gradleApi())
+        compile(localGroovy())
+
+        compileOnly(group: "org.eclipse.jdt", name: "org.eclipse.jdt.annotation", version: "2.0.0")
+
+        testCompile(gradleTestKit())
+        testCompile(group: "me.seeber.gradle", name: "gradle-test-kit", version: "1.0.0")
+
+        testCompileOnly(group: "org.eclipse.jdt", name: "org.eclipse.jdt.annotation", version: "2.0.0")
+    }
+    else {
+        annotations(group: "me.seeber.annotations", name: "gradle-api-annotations", version: "3.1-r.1")
+        annotations(group: "me.seeber.annotations", name: "jdk-annotations", version: "1.8.0-r.1")
+    }
+}
+
+if(project.hasProperty("bootstrap")) {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url = "https://plugins.gradle.org/m2" }
+        jcenter()
+    }
+}
