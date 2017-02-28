@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.jdt.annotation.NonNull;
+import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
@@ -48,16 +49,20 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.tasks.Copy;
+import org.gradle.api.tasks.wrapper.Wrapper;
 import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.model.Defaults;
+import org.gradle.model.Each;
 import org.gradle.model.Finalize;
 import org.gradle.model.Model;
 import org.gradle.model.ModelMap;
 import org.gradle.model.Mutate;
 import org.gradle.model.RuleSource;
 import org.gradle.model.internal.core.Hidden;
+import org.gradle.util.GradleVersion;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
 
 import me.seeber.gradle.plugin.AbstractProjectConfigPlugin;
 import me.seeber.gradle.util.Validate;
@@ -66,6 +71,11 @@ import me.seeber.gradle.util.Validate;
  * Plugin that applies general project configuration
  */
 public class ProjectConfigPlugin extends AbstractProjectConfigPlugin {
+
+    /**
+     * Required Gradle version used for version checks
+     */
+    protected static final GradleVersion REQUIRED_GRADLE_VERSION = Validate.notNull(GradleVersion.version("3.4"));
 
     /**
      * Plugin rules
@@ -144,6 +154,13 @@ public class ProjectConfigPlugin extends AbstractProjectConfigPlugin {
          */
         @org.gradle.model.Validate
         public void validateProjectConfig(ProjectConfig projectConfig) {
+            if (!Strings.isNullOrEmpty(projectConfig.getGradleVersion())) {
+                if (GradleVersion.current().compareTo(GradleVersion.version(projectConfig.getGradleVersion())) < 0) {
+                    throw new IllegalArgumentException(
+                            "This project requires at least Gradle " + projectConfig.getGradleVersion());
+                }
+            }
+
             Organization organization = projectConfig.getOrganization();
 
             if (projectConfig.getInceptionYear() == null) {
@@ -296,6 +313,19 @@ public class ProjectConfigPlugin extends AbstractProjectConfigPlugin {
         }
 
         /**
+         * Configure the wrapper task
+         *
+         * @param wrapper Wrapper task to configure
+         * @param projectConfig Project configuration to get required Gradle version
+         */
+        @Defaults
+        public void configureWrapperTask(@Each Wrapper wrapper, ProjectConfig projectConfig) {
+            if (!Strings.isNullOrEmpty(projectConfig.getGradleVersion())) {
+                wrapper.setGradleVersion(projectConfig.getGradleVersion());
+            }
+        }
+
+        /**
          * Create debug tasks
          *
          * @param tasks Task container to create new tasks
@@ -365,6 +395,8 @@ public class ProjectConfigPlugin extends AbstractProjectConfigPlugin {
      */
     @Override
     protected void initialize() {
+        checkGradleVersion();
+
         ProjectContext context = new ProjectContext(getProject());
         getProject().getExtensions().add("projectContext", context);
 
@@ -380,5 +412,16 @@ public class ProjectConfigPlugin extends AbstractProjectConfigPlugin {
                 s.cacheChangingModulesFor(0, "seconds");
             });
         });
+    }
+
+    /**
+     * Check the Gradle version
+     *
+     * @throws GradleException if the Gradle version is smaller than the required version
+     */
+    protected void checkGradleVersion() {
+        if (GradleVersion.current().compareTo(REQUIRED_GRADLE_VERSION) < 0) {
+            throw new GradleException("Project config plugin requires at least Gradle " + REQUIRED_GRADLE_VERSION);
+        }
     }
 }

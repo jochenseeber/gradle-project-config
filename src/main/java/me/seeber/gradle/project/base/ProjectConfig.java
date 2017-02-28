@@ -41,83 +41,97 @@ public interface ProjectConfig {
      *
      * @return Year the project was created
      */
-    public abstract @Nullable Integer getInceptionYear();
+    public @Nullable Integer getInceptionYear();
 
     /**
      * Set the year the project was created
      *
      * @param year Year the project was created
      */
-    public abstract void setInceptionYear(@Nullable Integer year);
+    public void setInceptionYear(@Nullable Integer year);
 
     /**
      * Get the URL of the project's web site
      *
      * @return URL of the project's web site
      */
-    public abstract @Nullable String getWebsiteUrl();
+    public @Nullable String getWebsiteUrl();
 
     /**
      * Set the URL of the project's web site
      *
      * @param url URL of the project's web site
      */
-    public abstract void setWebsiteUrl(@Nullable String url);
+    public void setWebsiteUrl(@Nullable String url);
 
     /**
      * Get the license configuration
      *
      * @return License configuration
      */
-    public abstract License getLicense();
+    public License getLicense();
 
     /**
      * Get the version control configuration
      *
      * @return Version control configuration
      */
-    public abstract VersionControl getVersionControl();
+    public VersionControl getVersionControl();
 
     /**
      * Get the repository configuration
      *
      * @return Repository configuration
      */
-    public abstract Repository getRepository();
+    public Repository getRepository();
 
     /**
      * Get the issue tracker configuration
      *
      * @return Issue Tracker configuration
      */
-    public abstract IssueTracker getIssueTracker();
+    public IssueTracker getIssueTracker();
 
     /**
      * Get the release configuration
      *
      * @return Release configuration
      */
-    public abstract Release getRelease();
+    public Release getRelease();
 
     /**
      * Get the Organization configuration
      *
      * @return Organization configuration
      */
-    public abstract Organization getOrganization();
+    public Organization getOrganization();
 
     /**
      * Get if the plugin should add debug tasks to the project
      *
      * @return <code>true</code> if the plugin should add debug tasks to the project
      */
-    public abstract boolean isEnableDebugTasks();
+    public boolean isEnableDebugTasks();
 
     /**
      * Set if the plugin should add debug tasks to the project
      *
      * @param enableDebugTasks <code>true</code> if the plugin should add debug tasks to the project
      */
-    public abstract void setEnableDebugTasks(boolean enableDebugTasks);
+    public void setEnableDebugTasks(boolean enableDebugTasks);
+
+    /**
+     * Get the required Gradle version
+     *
+     * @return Required Gradle version
+     */
+    public String getGradleVersion();
+
+    /**
+     * Set the required Gradle version
+     *
+     * @param version Required Gradle version
+     */
+    public void setGradleVersion(String version);
 
 }

@@ -185,7 +185,7 @@ public abstract class Projects {
         Optional<ProjectElement<ResolvedArtifact>> info = Optional.empty();
 
         for (@NonNull Configuration configuration : project.getConfigurations()) {
-            if (configurationPredicate.test(configuration)) {
+            if (configuration.isCanBeResolved() && configurationPredicate.test(configuration)) {
                 info = findResolvedArtifact(project, configuration, artifactPredicate);
 
                 if (info.isPresent()) {

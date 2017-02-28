@@ -248,7 +248,7 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
                     Set<File> files = new HashSet<>();
 
                     configurations.all(c -> {
-                        if (!c.getName().equals(JavaConfigPlugin.ANNOTATIONS_CONFIGURATION)) {
+                        if (c.isCanBeResolved() && !c.getName().equals(JavaConfigPlugin.ANNOTATIONS_CONFIGURATION)) {
                             LenientConfiguration lenientConfiguration = c.getResolvedConfiguration()
                                     .getLenientConfiguration();
                             Set<File> jars = lenientConfiguration.getFiles().stream()
