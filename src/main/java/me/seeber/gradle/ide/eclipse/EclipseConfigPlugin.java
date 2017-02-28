@@ -151,7 +151,8 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
             IGNORE_OPTIONAL_PROBLEMS_XPATH = xpath.compile("attribute[@name = 'ignore_optional_problems'][1]");
         }
         catch (XPathExpressionException e) {
-            throw Throwables.propagate(e);
+            Throwables.throwIfUnchecked(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -364,7 +365,6 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
                 throw new RuntimeException(format("Could not load properties '%s'", name), e);
             }
         }
-
     }
 
     /**
@@ -384,7 +384,8 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
             dummyConnection.setDefaultUseCaches(false);
         }
         catch (IOException e) {
-            throw Throwables.propagate(e);
+            Throwables.throwIfUnchecked(e);
+            throw new RuntimeException(e);
         }
 
         getProject().getPlugins().apply(ProjectConfigPlugin.class);
@@ -542,7 +543,8 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
                 attribute.setAttribute("value", p.getPath());
             }
             catch (XPathExpressionException e) {
-                throw Throwables.propagate(e);
+                Throwables.throwIfUnchecked(e);
+                throw new RuntimeException(e);
             }
         });
     }
@@ -576,7 +578,8 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
                 attribute.setAttribute("value", Boolean.toString(true));
             }
             catch (XPathExpressionException e) {
-                throw Throwables.propagate(e);
+                Throwables.throwIfUnchecked(e);
+                throw new RuntimeException(e);
             }
         }
     }

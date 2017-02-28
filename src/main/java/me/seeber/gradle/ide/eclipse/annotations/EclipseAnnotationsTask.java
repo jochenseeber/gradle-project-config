@@ -264,7 +264,8 @@ public class EclipseAnnotationsTask extends ConventionTask {
             return result;
         }
         catch (IOException e) {
-            throw Throwables.propagate(e);
+            Throwables.throwIfUnchecked(e);
+            throw new RuntimeException(e);
         }
         finally {
             if (tempFile != null && tempFile.exists()) {

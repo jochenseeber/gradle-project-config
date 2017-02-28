@@ -92,7 +92,7 @@ else {
 }
 
 dependencies {
-    compile(group: "com.google.guava", name: "guava", version: "19.0")
+    compile(group: "com.google.guava", name: "guava", version: "21.0")
     compile(group: "net.bytebuddy", name: "byte-buddy", version: "1.5.7")
 
     if(project.hasProperty("bootstrap")) {
