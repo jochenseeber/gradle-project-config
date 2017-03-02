@@ -91,6 +91,6 @@ public class GradlePluginConfigPlugin extends AbstractProjectConfigPlugin {
         dependencies.add("compile", dependencies.localGroovy());
 
         dependencies.add("testCompile", dependencies.gradleTestKit());
-        dependencies.add("testCompile", "me.seeber.gradle:gradle-test-kit:1.0.0-SNAPSHOT");
+        dependencies.add("testCompile", "me.seeber.gradle:gradle-test-kit:1.1.1");
     }
 }

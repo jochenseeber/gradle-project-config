@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.project.groovy;
 
 import org.gradle.api.artifacts.Configuration;
@@ -92,7 +93,7 @@ public class GroovyConfigPlugin extends AbstractProjectConfigPlugin {
         DependencyHandler dependencies = getProject().getDependencies();
         ExternalDependency spock = (ExternalDependency) dependencies.add("testCompile",
                 ImmutableMap.of("group", "org.spockframework", "name", "spock-core", "version", "1.0-groovy-2.4"));
-        spock.exclude(ImmutableMap.of("group", "org.codehaus.groovy"));
+        spock.exclude(ImmutableMap.of("group", "org.codehaus.groovy", "module", "groovy-all"));
 
         String name = Validate.notNull(getProject().getName());
         Configuration archives = getProject().getConfigurations().getByName("archives");
