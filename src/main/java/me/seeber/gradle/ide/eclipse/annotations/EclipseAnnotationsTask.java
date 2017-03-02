@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.ide.eclipse.annotations;
 
 import java.io.File;
@@ -43,9 +44,9 @@ import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.gradle.api.GradleException;
-import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.internal.ConventionTask;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputDirectory;
@@ -54,6 +55,7 @@ import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.incremental.IncrementalTaskInputs;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
 
 import me.seeber.gradle.ide.eclipse.EclipseConfigPlugin;
@@ -83,7 +85,7 @@ public class EclipseAnnotationsTask extends ConventionTask {
      */
     public EclipseAnnotationsTask() {
         this.jars = Collections.emptySet();
-        this.destinationDir = new File(Project.DEFAULT_BUILD_DIR_NAME, "annotations");
+        this.destinationDir = new File(getProject().getBuildDir(), "annotations");
     }
 
     /**
@@ -209,7 +211,8 @@ public class EclipseAnnotationsTask extends ConventionTask {
     protected boolean createAnnotationJar(File jarFile, File annotationJarFile) {
         getLogger().info("Creating annotations JAR for '{}'", jarFile);
 
-        ClassLoader classLoader = new URLClassLoader(getClasspathUrls());
+        Set<URL> classpathUrls = getClasspathUrls();
+        ClassLoader classLoader = new URLClassLoader(classpathUrls.toArray(new URL[classpathUrls.size()]));
         Set<String> knownErrors = new HashSet<>();
         boolean annotated = false;
 
@@ -279,13 +282,14 @@ public class EclipseAnnotationsTask extends ConventionTask {
      * @return Classpath URLs
      */
     @Input
-    protected URL[] getClasspathUrls() {
+    @Classpath
+    protected Set<URL> getClasspathUrls() {
         Configuration compileConfiguration = getProject().getConfigurations()
                 .getByName(EclipseConfigPlugin.ECLIPSE_ANNOTATIONS_CONFIGURATION);
 
         getLogger().info("Using classpath '{}'", compileConfiguration.getAsPath());
 
-        URL[] urls = compileConfiguration.getFiles().stream().map(f -> {
+        Set<URL> urls = compileConfiguration.getFiles().stream().map(f -> {
             try {
                 return f.toURI().toURL();
             }
@@ -293,8 +297,8 @@ public class EclipseAnnotationsTask extends ConventionTask {
                 throw new GradleException(
                         String.format("Could not create classpath for annotations task %s.", getName()), e);
             }
-        }).toArray(s -> new URL[s]);
+        }).collect(Collectors.toSet());
 
-        return urls;
+        return ImmutableSet.copyOf(urls);
     }
 }

@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.ide.eclipse;
 
 import static java.lang.String.format;
@@ -35,7 +36,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -56,9 +56,10 @@ import org.gradle.api.Task;
 import org.gradle.api.XmlProvider;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.Dependency;
-import org.gradle.api.artifacts.LenientConfiguration;
 import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.artifacts.ResolvedArtifact;
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
+import org.gradle.api.internal.ConventionMapping;
 import org.gradle.api.internal.project.ProjectIdentifier;
 import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.plugins.JavaPlugin;
@@ -243,22 +244,20 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
                 t.setDescription("Generates external nullability annotations for dependencies.");
                 t.setGroup("IDE");
 
-                // TODO Is this the best way to do this?
-                t.doFirst(tt -> {
-                    Set<File> files = new HashSet<>();
+                ConventionMapping parameters = t.getConventionMapping();
+                parameters.map("jars", () -> {
+                    Set<File> jars = configurations.stream()
+                            .filter(c -> c.isCanBeResolved()
+                                    && !c.getName().equals(JavaConfigPlugin.ANNOTATIONS_CONFIGURATION))
+                            .map(c -> c.getResolvedConfiguration().getLenientConfiguration())
+                            .flatMap(c -> c.getArtifacts().stream()
+                                    .filter(a -> !(a.getId()
+                                            .getComponentIdentifier() instanceof ProjectComponentIdentifier)
+                                            && a.getType().equals("jar"))
+                                    .map(a -> a.getFile()))
+                            .collect(Collectors.toSet());
 
-                    configurations.all(c -> {
-                        if (c.isCanBeResolved() && !c.getName().equals(JavaConfigPlugin.ANNOTATIONS_CONFIGURATION)) {
-                            LenientConfiguration lenientConfiguration = c.getResolvedConfiguration()
-                                    .getLenientConfiguration();
-                            Set<File> jars = lenientConfiguration.getFiles().stream()
-                                    .filter(f -> Files.getFileExtension(f.getName()).equals("jar"))
-                                    .collect(Collectors.toSet());
-                            files.addAll(jars);
-                        }
-                    });
-
-                    t.setJars(files);
+                    return jars;
                 });
             });
         }
