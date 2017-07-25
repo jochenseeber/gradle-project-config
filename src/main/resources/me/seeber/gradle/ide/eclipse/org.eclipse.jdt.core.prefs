@@ -65,9 +65,9 @@ org.eclipse.jdt.core.compiler.problem.noEffectAssignment=warning
 org.eclipse.jdt.core.compiler.problem.noImplicitStringConversion=warning
 org.eclipse.jdt.core.compiler.problem.nonExternalizedStringLiteral=ignore
 org.eclipse.jdt.core.compiler.problem.nonnullParameterAnnotationDropped=warning
-org.eclipse.jdt.core.compiler.problem.nullAnnotationInferenceConflict=error
+org.eclipse.jdt.core.compiler.problem.nullAnnotationInferenceConflict=warning
 org.eclipse.jdt.core.compiler.problem.nullReference=warning
-org.eclipse.jdt.core.compiler.problem.nullSpecViolation=error
+org.eclipse.jdt.core.compiler.problem.nullSpecViolation=warning
 org.eclipse.jdt.core.compiler.problem.nullUncheckedConversion=warning
 org.eclipse.jdt.core.compiler.problem.overridingPackageDefaultMethod=warning
 org.eclipse.jdt.core.compiler.problem.parameterAssignment=ignore
@@ -400,3 +400,4 @@ org.eclipse.jdt.core.formatter.wrap_before_or_operator_multicatch=false
 org.eclipse.jdt.core.formatter.wrap_outer_expressions_when_nested=true
 org.eclipse.jdt.core.incompatibleJDKLevel=ignore
 org.eclipse.jdt.core.incompleteClasspath=error
+
