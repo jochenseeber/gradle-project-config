@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.distribution.maven;
 
 import java.util.Collections;
@@ -179,7 +180,7 @@ public class MavenConfigPlugin extends AbstractProjectConfigPlugin {
 
                                 PomConfigurator configurator = new PomConfigurator(projectContext, projectConfig,
                                         Validate.notNull(runtimeConfigurations),
-                                        Validate.notNull(compileConfigurations), Validate.notNull(artifacts));
+                                        Validate.notNull(compileConfigurations));
 
                                 p.pom(pom -> pom.withXml(xml -> configurator.configurePom(Validate.notNull(xml))));
 

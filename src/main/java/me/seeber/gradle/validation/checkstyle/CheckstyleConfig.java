@@ -25,7 +25,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.validation.checkstyle;
+
+import java.util.Set;
 
 import org.gradle.model.Managed;
 
@@ -34,4 +37,19 @@ import org.gradle.model.Managed;
  */
 @Managed
 public interface CheckstyleConfig {
+
+    /**
+     * Set the source sets to ignore
+     *
+     * @return Source sets to ignore
+     */
+    public Set<String> getIgnoreSourceSets();
+
+    /**
+     * Get the source sets to ignore
+     *
+     * @param sourceSets Source sets to ignore
+     */
+    public void setIgnoreSourceSets(Set<String> sourceSets);
+
 }

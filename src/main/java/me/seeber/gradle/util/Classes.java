@@ -25,11 +25,16 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.util;
 
+import static java.lang.String.format;
+
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.Optional;
+import java.util.Properties;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
@@ -46,7 +51,7 @@ public class Classes {
      * @param name Name of the resource
      * @return Resource content
      */
-    public static final Optional<String> getResourceString(Class<?> type, String name) {
+    public static Optional<String> getResourceString(Class<?> type, String name) {
         String text = null;
         URL resource = type.getResource(name);
 
@@ -60,6 +65,28 @@ public class Classes {
         }
 
         return Optional.ofNullable(text);
+    }
+
+    /**
+     * Load properties from a resource
+     *
+     * @param type Type to load properties for
+     * @param name Properties name
+     * @return Properties
+     */
+    public static Properties loadProperties(Class<?> type, String name) {
+        try {
+            URL url = Resources.getResource(type, name);
+
+            try (InputStream in = url.openStream()) {
+                Properties properties = new Properties();
+                properties.load(in);
+                return properties;
+            }
+        }
+        catch (Exception e) {
+            throw new RuntimeException(format("Could not load properties '%s' for type '%s'", name, type), e);
+        }
     }
 
 }

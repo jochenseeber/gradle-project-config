@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.util;
 
 import static java.lang.String.format;
@@ -33,6 +34,8 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
@@ -185,6 +188,18 @@ public abstract class Nodes {
             child = (Element) Validate.notNull(children.item(0));
         }
 
+        return child;
+    }
+
+    /**
+     * Find a child element
+     *
+     * @param parent Parent element
+     * @param predicate Predicate used to select child
+     * @return First child element if there is one that fulfills predicate
+     */
+    public static Optional<Element> find(Element parent, Predicate<@NonNull Element> predicate) {
+        Optional<Element> child = children(parent).stream().filter(predicate).findFirst();
         return child;
     }
 

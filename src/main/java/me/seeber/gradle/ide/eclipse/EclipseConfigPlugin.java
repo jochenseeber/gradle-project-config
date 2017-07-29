@@ -28,11 +28,8 @@
 
 package me.seeber.gradle.ide.eclipse;
 
-import static java.lang.String.format;
-
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.HashMap;
@@ -98,6 +95,7 @@ import me.seeber.gradle.plugin.Projects;
 import me.seeber.gradle.plugin.Projects.ProjectElement;
 import me.seeber.gradle.project.base.ProjectConfigPlugin;
 import me.seeber.gradle.project.java.JavaConfigPlugin;
+import me.seeber.gradle.util.Classes;
 import me.seeber.gradle.util.Nodes;
 import me.seeber.gradle.util.Validate;
 
@@ -250,37 +248,14 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
                             .filter(c -> c.isCanBeResolved()
                                     && !c.getName().equals(JavaConfigPlugin.ANNOTATIONS_CONFIGURATION))
                             .map(c -> c.getResolvedConfiguration().getLenientConfiguration())
-                            .flatMap(c -> c.getArtifacts().stream()
-                                    .filter(a -> !(a.getId()
-                                            .getComponentIdentifier() instanceof ProjectComponentIdentifier)
+                            .flatMap(c -> c.getArtifacts().stream().filter(
+                                    a -> !(a.getId().getComponentIdentifier() instanceof ProjectComponentIdentifier)
                                             && a.getType().equals("jar"))
                                     .map(a -> a.getFile()))
                             .collect(Collectors.toSet());
 
                     return jars;
                 });
-            });
-        }
-
-        /**
-         * Create the Eclipse UI tasks
-         *
-         * @param tasks Task container
-         * @param eclipseConfig Eclipse configuration
-         * @param project Current Gradle project
-         */
-        @Mutate
-        public void createEclipseUiTasks(ModelMap<Task> tasks, EclipseConfig eclipseConfig, Project project) {
-            tasks.create("eclipseUi", GenerateEclipseUi.class, t -> {
-                t.setDescription("Generates the Eclipse JDT UI settings file (org.eclipse.jdt.ui.prefs).");
-                t.setOutputFile(project.file(".settings/org.eclipse.jdt.ui.prefs"));
-                t.setInputFile(project.file(".settings/org.eclipse.jdt.ui.prefs"));
-                t.setUi(eclipseConfig.getUi());
-            });
-
-            tasks.create("cleanEclipseUi", Delete.class, t -> {
-                t.delete(project.file(".settings/org.eclipse.jdt.ui.prefs"));
-                t.setDescription("Removes the Eclipse JDT UI settings file (org.eclipse.jdt.ui.prefs).");
             });
         }
 
@@ -317,11 +292,16 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
          */
         @Mutate
         public void configureEclipseJdtTask(@Each GenerateEclipseJdt eclipseJdt) {
-            Properties properties = loadProperties("org.eclipse.jdt.core.prefs");
+            Properties properties = Classes.loadProperties(EclipseConfigPlugin.class, "org.eclipse.jdt.core.prefs");
+            Properties compilerProperties = Classes.loadProperties(JavaConfigPlugin.class, "eclipseJavaCompiler.prefs");
 
             eclipseJdt.getJdt().getFile().withProperties(p -> {
+                compilerProperties.forEach((name, value) -> {
+                    p.putIfAbsent(name, value);
+                });
+
                 properties.forEach((name, value) -> {
-                    p.computeIfAbsent(name, n -> value);
+                    p.putIfAbsent(name, value);
                 });
             });
         }
@@ -344,25 +324,27 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
         }
 
         /**
-         * Load properties from a resource
+         * Create the Eclipse UI tasks
          *
-         * @param name Resource name
-         * @return Properties
+         * @param tasks Task container
+         * @param eclipseConfig Eclipse configuration
+         * @param project Current Gradle project
          */
-        private Properties loadProperties(String name) {
-            try {
-                URL url = Resources.getResource(EclipseConfigPlugin.class, name);
+        @Mutate
+        public void createEclipseUiTasks(ModelMap<Task> tasks, EclipseConfig eclipseConfig, Project project) {
+            tasks.create("eclipseUi", GenerateEclipseUi.class, t -> {
+                t.setDescription("Generates the Eclipse JDT UI settings file (org.eclipse.jdt.ui.prefs).");
+                t.setOutputFile(project.file(".settings/org.eclipse.jdt.ui.prefs"));
+                t.setInputFile(project.file(".settings/org.eclipse.jdt.ui.prefs"));
+                t.setUi(eclipseConfig.getUi());
+            });
 
-                try (InputStream in = url.openStream()) {
-                    Properties properties = new Properties();
-                    properties.load(in);
-                    return properties;
-                }
-            }
-            catch (Exception e) {
-                throw new RuntimeException(format("Could not load properties '%s'", name), e);
-            }
+            tasks.create("cleanEclipseUi", Delete.class, t -> {
+                t.delete(project.file(".settings/org.eclipse.jdt.ui.prefs"));
+                t.setDescription("Removes the Eclipse JDT UI settings file (org.eclipse.jdt.ui.prefs).");
+            });
         }
+
     }
 
     /**

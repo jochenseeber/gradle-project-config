@@ -25,19 +25,20 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.distribution.maven;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Objects;
 
 import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.jdt.annotation.Nullable;
 import org.gradle.api.XmlProvider;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.DependencyArtifact;
 import org.gradle.api.artifacts.ExcludeRule;
 import org.gradle.api.artifacts.ModuleDependency;
-import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.plugins.JavaPlugin;
 import org.w3c.dom.Element;
 
@@ -78,29 +79,21 @@ public class PomConfigurator {
     private final List<@NonNull Configuration> runtimeConfigurations;
 
     /**
-     * Artifacts to add
-     */
-    private final List<@NonNull PublishArtifact> artifacts;
-
-    /**
      * Create a new configurator
      *
      * @param project Project information
      * @param projectConfig Project configuration
      * @param compileConfigurations Compile configuration to add to the POM
      * @param runtimeConfigurations Runtime configuration to add to the POM
-     * @param artifacts Artifacts to add to the POM
      */
     public PomConfigurator(ProjectContext project,
             ProjectConfig projectConfig,
             List<@NonNull Configuration> compileConfigurations,
-            List<@NonNull Configuration> runtimeConfigurations,
-            List<@NonNull PublishArtifact> artifacts) {
+            List<@NonNull Configuration> runtimeConfigurations) {
         this.project = project;
         this.projectConfig = projectConfig;
         this.compileConfigurations = compileConfigurations;
         this.runtimeConfigurations = runtimeConfigurations;
-        this.artifacts = artifacts;
     }
 
     /**
@@ -150,22 +143,12 @@ public class PomConfigurator {
 
         Element dependencies = Nodes.child(pom, "dependencies");
 
-        Set<Dependency> existingDependencies = new HashSet<>();
-
         for (Configuration configuration : this.compileConfigurations) {
-            addDependencies(dependencies, configuration, JavaPlugin.COMPILE_CONFIGURATION_NAME, existingDependencies);
+            addDependencies(dependencies, configuration, JavaPlugin.COMPILE_CONFIGURATION_NAME);
         }
 
         for (Configuration configuration : this.runtimeConfigurations) {
-            addDependencies(dependencies, configuration, JavaPlugin.RUNTIME_CONFIGURATION_NAME, existingDependencies);
-        }
-
-        for (PublishArtifact artifact : this.artifacts) {
-            Element dependencyNode = Nodes.appendChild(dependencies, "dependency");
-            Nodes.setChildValue(dependencyNode, "groupId", this.project.getGroup());
-            Nodes.setChildValue(dependencyNode, "artifactId", artifact.getName());
-            Nodes.setChildValue(dependencyNode, "version", this.project.getVersion());
-            Nodes.setChildValue(dependencyNode, "scope", JavaPlugin.COMPILE_CONFIGURATION_NAME);
+            addDependencies(dependencies, configuration, JavaPlugin.RUNTIME_CONFIGURATION_NAME);
         }
     }
 
@@ -178,31 +161,93 @@ public class PomConfigurator {
      * @param dependencies Element to add dependencies to
      * @param configuration Configuration whose provides depencencies to add
      * @param scope Scope to use for added depencencies
-     * @param existingDependencies Existing dependencies to check for duplicates
      */
-    protected void addDependencies(Element dependencies, Configuration configuration, String scope,
-            Set<Dependency> existingDependencies) {
+    protected void addDependencies(Element dependencies, Configuration configuration, String scope) {
         for (@NonNull Dependency dependency : configuration.getDependencies()) {
-            if (dependency instanceof ModuleDependency && existingDependencies.add(dependency)) {
+            if (dependency instanceof ModuleDependency) {
                 ModuleDependency moduleDependency = (ModuleDependency) dependency;
 
-                Element dependencyNode = Nodes.appendChild(dependencies, "dependency");
-                Nodes.setChildValue(dependencyNode, "groupId", dependency.getGroup());
-                Nodes.setChildValue(dependencyNode, "artifactId", dependency.getName());
-                Nodes.setChildValue(dependencyNode, "version", dependency.getVersion());
-                Nodes.setChildValue(dependencyNode, "scope", scope);
-
-                if (!moduleDependency.getExcludeRules().isEmpty()) {
-                    Element exclusionsNode = Nodes.child(dependencyNode, "exclusions");
-
-                    for (ExcludeRule exclusion : moduleDependency.getExcludeRules()) {
-                        Element exclusionNode = Nodes.appendChild(exclusionsNode, "exclusion");
-                        Nodes.setChildValue(exclusionNode, "groupId", exclusion.getGroup());
-                        Nodes.setChildValue(exclusionNode, "artifactId", Strings.emptyToNull(exclusion.getModule()));
+                if (moduleDependency.getArtifacts().isEmpty()) {
+                    addDependency(dependencies, moduleDependency, moduleDependency.getName(), null, "jar", scope);
+                }
+                else {
+                    for (DependencyArtifact artifact : moduleDependency.getArtifacts()) {
+                        addDependency(dependencies, moduleDependency, artifact.getName(), artifact.getClassifier(),
+                                artifact.getType(), scope);
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Find a dependency element for an artifact
+     *
+     * @param dependencies Dependencies element to search
+     * @param module Module of dependency
+     * @param artifactId Artifact ID
+     * @param classifier Artifact classifier
+     * @param type Artifact type
+     * @param scope Scope of dependency
+     * @return Child element for dependency artifact if there is one
+     */
+    protected Element addDependency(Element dependencies, ModuleDependency module, String artifactId,
+            @Nullable String classifier, String type, String scope) {
+        Element dependencyElement = Nodes.find(dependencies, e -> {
+            boolean found = isEquivalent(Nodes.childValue(e, "groupId"), module.getGroup())
+                    && isEquivalent(Nodes.childValue(e, "artifactId"), artifactId)
+                    && isEquivalent(Nodes.childValue(e, "type"), type)
+                    && isEquivalent(Nodes.childValue(e, "classifier"), classifier);
+            return found;
+        }).orElse(null);
+
+        if (dependencyElement == null) {
+            dependencyElement = Nodes.appendChild(dependencies, "dependency");
+
+            Nodes.setChildValue(dependencyElement, "groupId", module.getGroup());
+            Nodes.setChildValue(dependencyElement, "artifactId", artifactId);
+            Nodes.setChildValue(dependencyElement, "type", type);
+            Nodes.setChildValue(dependencyElement, "classifier", classifier);
+        }
+
+        Nodes.setChildValue(dependencyElement, "version", module.getVersion());
+        Nodes.setChildValue(dependencyElement, "scope", scope);
+
+        if (!module.getExcludeRules().isEmpty()) {
+            Element exclusionsElement = Nodes.child(dependencyElement, "exclusions");
+
+            for (ExcludeRule exclusion : module.getExcludeRules()) {
+                Element exclusionElement = Nodes.find(exclusionsElement, e -> {
+                    boolean found = isEquivalent(Nodes.childValue(e, "groupId"), module.getGroup())
+                            && isEquivalent(Nodes.childValue(e, "artifactId"), artifactId);
+                    return found;
+                }).orElse(null);
+
+                if (exclusionElement == null) {
+                    exclusionElement = Nodes.appendChild(exclusionsElement, "exclusion");
+
+                    Nodes.setChildValue(exclusionElement, "groupId", exclusion.getGroup());
+                    Nodes.setChildValue(exclusionElement, "artifactId", Strings.emptyToNull(exclusion.getModule()));
+                }
+            }
+        }
+
+        return dependencyElement;
+    }
+
+    /**
+     * Check two strings for equivalence
+     *
+     * The two strings are considered as equivalent if they are not empty and equal, or if both are empty or
+     * <code>null</code>.
+     *
+     * @param first First string
+     * @param second Second string
+     * @return <code>true</code> if the two strings are equivalent
+     */
+    protected boolean isEquivalent(@Nullable String first, @Nullable String second) {
+        boolean equivalent = Objects.equals(Strings.emptyToNull(first), Strings.emptyToNull(second));
+        return equivalent;
     }
 
 }

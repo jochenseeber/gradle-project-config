@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.project.base;
 
 import java.io.File;
@@ -159,6 +160,15 @@ public class ProjectContext {
      */
     protected String toEnvName(String name) {
         return Validate.notNull(PROPERTY_NAME_CONVERTER.convert(name));
+    }
+
+    /**
+     * Get the build directory
+     *
+     * @return Build directory
+     */
+    public File getBuildDir() {
+        return this.project.getBuildDir();
     }
 
 }
