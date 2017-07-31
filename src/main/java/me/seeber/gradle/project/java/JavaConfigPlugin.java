@@ -46,20 +46,23 @@ import org.gradle.api.artifacts.DependencySubstitutions;
 import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.plugins.BasePluginConvention;
+import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.compile.CompileOptions;
 import org.gradle.api.tasks.compile.ForkOptions;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.javadoc.Javadoc;
+import org.gradle.api.tasks.testing.Test;
 import org.gradle.jvm.plugins.JUnitTestSuitePlugin;
-import org.gradle.jvm.test.JUnitTestSuiteSpec;
 import org.gradle.language.base.ProjectSourceSet;
 import org.gradle.language.java.JavaSourceSet;
 import org.gradle.language.java.plugins.JavaLanguagePlugin;
 import org.gradle.model.Defaults;
 import org.gradle.model.Each;
+import org.gradle.model.Finalize;
 import org.gradle.model.Model;
 import org.gradle.model.ModelMap;
 import org.gradle.model.Mutate;
@@ -86,6 +89,16 @@ import me.seeber.gradle.util.Validate;
 public class JavaConfigPlugin extends AbstractProjectConfigPlugin {
 
     /**
+     * Name of the integration source set
+     */
+    public static final String INTEGRATION_SOURCE_SET_NAME = "integration";
+
+    /**
+     * Name of the integration test task
+     */
+    public static final String INTEGRATION_TASK_NAME = "integration";
+
+    /**
      * Name of the configuration for external Eclipse annotations
      */
     public static final String ANNOTATIONS_CONFIGURATION = "annotations";
@@ -96,14 +109,41 @@ public class JavaConfigPlugin extends AbstractProjectConfigPlugin {
     public static final String ECLIPSE_JAVA_COMPILER_CONFIGURATION = "eclipseJavaCompiler";
 
     /**
-     * Name of the configuration for integration test compilation
+     * Name of the configuration for integration implementation dependencies
      */
+    public static final String INTEGRATION_IMPLEMENTATION_CONFIGURATION = "integrationImplementation";
+
+    /**
+     * Name of the configuration for integration compile only dependencies
+     */
+    @Deprecated
     public static final String INTEGRATION_COMPILE_CONFIGURATION = "integrationCompile";
 
     /**
-     * Name of the configuration for integration test runtime
+     * Name of the configuration for integration compile only dependencies
      */
+    @Deprecated
     public static final String INTEGRATION_RUNTIME_CONFIGURATION = "integrationRuntime";
+
+    /**
+     * Name of the configuration for integration compile only dependencies
+     */
+    public static final String INTEGRATION_COMPILE_ONLY_CONFIGURATION = "integrationCompileOnly";
+
+    /**
+     * Name of the configuration for integration runtime only dependencies
+     */
+    public static final String INTEGRATION_RUNTIME_ONLY_CONFIGURATION = "integrationRuntimeOnly";
+
+    /**
+     * Name of the configuration for integration compile classpath dependencies
+     */
+    public static final String INTEGRATION_COMPILE_CLASSPATH_CONFIGURATION = "integrationCompileClasspath";
+
+    /**
+     * Name of the configuration for integration runtime classpath dependencies
+     */
+    public static final String INTEGRATION_RUNTIME_CLASSPATH_CONFIGURATION = "integrationRuntimeClasspath";
 
     /**
      * JaCoCo version to use
@@ -307,14 +347,43 @@ public class JavaConfigPlugin extends AbstractProjectConfigPlugin {
         }
 
         /**
-         * Create integration test suite
+         * Create integration test task
          *
-         * @param suites Test suites to add to
+         * @param tasks Task model
          */
         @Mutate
-        public void createIntegrationBinary(@Path("testSuites") ModelMap<JUnitTestSuiteSpec> suites) {
-            suites.create("integration", s -> {
-                s.setjUnitVersion("4.12");
+        public void createIntegrationTask(ModelMap<Test> tasks) {
+            tasks.create(INTEGRATION_SOURCE_SET_NAME, t -> {
+                t.setDescription("Runs the integration tests");
+                t.setGroup(JavaBasePlugin.VERIFICATION_GROUP);
+            });
+        }
+
+        /**
+         * Finalize tasks because of {@link JavaPlugin} interference
+         *
+         * @param tasks Task model
+         * @param javaConvention Java conventions
+         */
+        @Finalize
+        public void finalizeIntegrationTask(ModelMap<Test> tasks, JavaPluginConvention javaConvention) {
+            SourceSet source = javaConvention.getSourceSets().getByName(INTEGRATION_SOURCE_SET_NAME);
+
+            tasks.named(INTEGRATION_SOURCE_SET_NAME, t -> {
+                t.setClasspath(source.getRuntimeClasspath());
+                t.setTestClassesDirs(source.getOutput().getClassesDirs());
+            });
+        }
+
+        /**
+         * Configure the check task
+         *
+         * @param tasks Tasks
+         */
+        @Mutate
+        public void configureCheckTask(ModelMap<Task> tasks) {
+            tasks.named(JavaBasePlugin.CHECK_TASK_NAME, t -> {
+                t.dependsOn(INTEGRATION_TASK_NAME);
             });
         }
     }
@@ -380,12 +449,47 @@ public class JavaConfigPlugin extends AbstractProjectConfigPlugin {
         testArchives.getArtifacts().add(testArtifact);
         testRuntime.getArtifacts().add(testArtifact);
 
-        /*
-         * // Create integration test configurations
-         * getProject().getConfigurations().create(INTEGRATION_COMPILE_CONFIGURATION, c -> {
-         * c.setDescription("Integration test compile configuration"); c.setVisible(false); c.setTransitive(true); });
-         * getProject().getConfigurations().create(INTEGRATION_RUNTIME_CONFIGURATION, c -> {
-         * c.setDescription("Integration test runtime configuration"); c.setVisible(false); c.setTransitive(true); });
-         */
+        configureIntegrationTests();
+    }
+
+    protected void configureIntegrationTests() {
+        JavaPluginConvention javaConvention = getProject().getConvention().getPlugin(JavaPluginConvention.class);
+
+        SourceSet integrationSources = javaConvention.getSourceSets().create("integration", s -> {
+            // s.compiledBy("compileIntegrationJava");
+        });
+
+        SourceSet mainSources = javaConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+
+        @SuppressWarnings("deprecation") Configuration compile = getProject().getConfigurations()
+                .getAt(JavaPlugin.COMPILE_CONFIGURATION_NAME);
+        @SuppressWarnings("deprecation") Configuration runtime = getProject().getConfigurations()
+                .getAt(JavaPlugin.RUNTIME_CONFIGURATION_NAME);
+        Configuration implementation = getProject().getConfigurations()
+                .getAt(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME);
+        Configuration runtimeOnly = getProject().getConfigurations().getAt(JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME);
+
+        Configuration integrationCompileClasspath = getProject().getConfigurations()
+                .getByName(INTEGRATION_COMPILE_CLASSPATH_CONFIGURATION);
+        Configuration integrationRuntimeClasspath = getProject().getConfigurations()
+                .getByName(INTEGRATION_RUNTIME_CLASSPATH_CONFIGURATION);
+        Configuration integrationImplementation = getProject().getConfigurations()
+                .getByName(INTEGRATION_IMPLEMENTATION_CONFIGURATION);
+        Configuration integrationCompile = getProject().getConfigurations()
+                .getByName(INTEGRATION_COMPILE_CONFIGURATION);
+        Configuration integrationRuntime = getProject().getConfigurations()
+                .getByName(INTEGRATION_RUNTIME_CONFIGURATION);
+        Configuration integrationRuntimeOnly = getProject().getConfigurations()
+                .getByName(INTEGRATION_RUNTIME_ONLY_CONFIGURATION);
+
+        integrationCompile.extendsFrom(compile);
+        integrationImplementation.extendsFrom(implementation);
+        integrationRuntime.extendsFrom(runtime);
+        integrationRuntimeOnly.extendsFrom(runtimeOnly);
+
+        integrationSources
+                .setCompileClasspath(getProject().files(mainSources.getOutput(), integrationCompileClasspath));
+        integrationSources.setRuntimeClasspath(getProject().files(integrationSources.getOutput(),
+                mainSources.getOutput(), integrationSources.getOutput(), integrationRuntimeClasspath));
     }
 }

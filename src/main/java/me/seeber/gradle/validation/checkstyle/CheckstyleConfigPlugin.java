@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.internal.file.FileOperations;
+import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.quality.Checkstyle;
 import org.gradle.api.plugins.quality.CheckstyleExtension;
 import org.gradle.api.plugins.quality.CheckstylePlugin;
@@ -118,11 +119,33 @@ public class CheckstyleConfigPlugin extends AbstractProjectConfigPlugin {
             VersionControl versionControl = projectConfig.getVersionControl();
 
             for (JavaSourceSet source : sources.withType(JavaSourceSet.class)) {
-                if (!checkstyleConfig.getIgnoreSourceSets().contains(source.getName())) {
-                    File configFile = getCheckstyleConfigFile(source, files);
+                if (!checkstyleConfig.getIgnoreSourceSets().contains(source.getParentName())) {
+                    File configFile = getCheckstyleConfigFile(source.getParentName(), files);
                     versionControl.ignore("/" + Validate.notNull(files.relativePath(configFile)));
                 }
             }
+        }
+
+        /**
+         * Create Checkstyle task
+         *
+         * @param tasks Task container
+         * @param checkstyleConfig Checkstyle configuration
+         * @param sources Project sources to run checkstyle on
+         */
+        @Mutate
+        public void createCheckstyleTask(ModelMap<Task> tasks, CheckstyleConfig checkstyleConfig,
+                ProjectSourceSet sources) {
+            tasks.create("checkstyle", t -> {
+                t.setDescription("Run Checkstyle on all source sets");
+                t.setGroup(JavaBasePlugin.VERIFICATION_GROUP);
+
+                for (JavaSourceSet source : sources.withType(JavaSourceSet.class)) {
+                    if (!checkstyleConfig.getIgnoreSourceSets().contains(source.getParentName())) {
+                        t.dependsOn(getCheckstyleTaskName(source));
+                    }
+                }
+            });
         }
 
         /**
@@ -139,38 +162,23 @@ public class CheckstyleConfigPlugin extends AbstractProjectConfigPlugin {
             for (JavaSourceSet source : sources.withType(JavaSourceSet.class)) {
                 String taskName = getCheckstyleTaskName(source);
 
-                if (!checkstyleConfig.getIgnoreSourceSets().contains(source.getName())) {
+                if (!checkstyleConfig.getIgnoreSourceSets().contains(source.getParentName())) {
                     Checkstyle task = tasks.get(taskName);
 
-                    if (task == null) {
-                        tasks.create(taskName, t -> {
-                            t.setDescription(String.format("Run Checkstyle on source set ''", source.getName()));
-                            setupCheckstyleTask(t, source, files);
-                        });
-                    }
-                    else {
-                        setupCheckstyleTask(task, source, files);
+                    if (task != null) {
+                        File checkstyleConfigFile = getCheckstyleConfigFile(source.getParentName(), files);
+
+                        task.setGroup(JavaBasePlugin.VERIFICATION_GROUP);
+
+                        if (checkstyleConfigFile.exists()) {
+                            task.setConfigFile(checkstyleConfigFile);
+                        }
+
+                        if (task.getConfigFile() != null && task.getConfigFile().getParentFile() != null) {
+                            task.getConfigProperties().putIfAbsent("config_loc", task.getConfigFile().getParent());
+                        }
                     }
                 }
-            }
-        }
-
-        /**
-         * Configure a checkstyle task
-         *
-         * @param task Checkstyle task to configure
-         * @param source Source set
-         * @param files File accessor
-         */
-        private void setupCheckstyleTask(Checkstyle task, JavaSourceSet source, FileOperations files) {
-            File checkstyleConfigFile = getCheckstyleConfigFile(Validate.notNull(source), files);
-
-            if (checkstyleConfigFile.exists()) {
-                task.setConfigFile(checkstyleConfigFile);
-            }
-
-            if (task.getConfigFile() != null && task.getConfigFile().getParentFile() != null) {
-                task.getConfigProperties().putIfAbsent("config_loc", task.getConfigFile().getParent());
             }
         }
 
@@ -189,9 +197,10 @@ public class CheckstyleConfigPlugin extends AbstractProjectConfigPlugin {
             });
 
             for (JavaSourceSet source : sources.withType(JavaSourceSet.class)) {
-                File configFile = getCheckstyleConfigFile(source, files);
+                File configFile = getCheckstyleConfigFile(source.getParentName(), files);
+                String resourceName = "checkstyle_" + source.getParentName() + ".xml";
 
-                String config = Classes.getResourceString(CheckstyleConfigPlugin.class, configFile.getName()).orElseGet(
+                String config = Classes.getResourceString(CheckstyleConfigPlugin.class, resourceName).orElseGet(
                         () -> Classes.getResourceString(CheckstyleConfigPlugin.class, "checkstyle.xml").get());
 
                 String taskName = getUpdateConfigTaskName(source);
@@ -212,19 +221,6 @@ public class CheckstyleConfigPlugin extends AbstractProjectConfigPlugin {
                     t.dependsOn(taskName);
                 });
             }
-        }
-
-        /**
-         * Get the checkstyle configuration file for a source set
-         *
-         * @param source Java source set
-         * @param files FIle operations object to resolve file names
-         * @return Checkstyle config file
-         */
-        private File getCheckstyleConfigFile(JavaSourceSet source, FileOperations files) {
-            File sourceDir = source.getSource().getSrcDirs().iterator().next();
-            File configFile = sourceDir.toPath().resolve("../checkstyle/checkstyle.xml").normalize().toFile();
-            return configFile;
         }
 
         /**
@@ -332,4 +328,17 @@ public class CheckstyleConfigPlugin extends AbstractProjectConfigPlugin {
             getProject().getPluginManager().apply(EclipseJavaRules.class);
         }
     }
+
+    /**
+     * Get the checkstyle configuration file for a source set
+     *
+     * @param sourceName Source set name
+     * @param files FIle operations object to resolve file names
+     * @return Checkstyle config file
+     */
+    public static File getCheckstyleConfigFile(String sourceName, FileOperations files) {
+        File configFile = files.file("config/" + sourceName + "/java/checkstyle.xml");
+        return configFile;
+    }
+
 }

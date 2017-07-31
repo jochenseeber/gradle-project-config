@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.validation.checkstyle;
 
 import java.io.File;
@@ -32,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import javax.inject.Inject;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Transformer;
@@ -42,6 +44,7 @@ import javax.xml.transform.stream.StreamResult;
 import org.eclipse.jdt.annotation.Nullable;
 import org.gradle.api.GradleException;
 import org.gradle.api.internal.ConventionTask;
+import org.gradle.api.internal.file.FileOperations;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -60,14 +63,27 @@ public class GenerateEclipseCheckstyle extends ConventionTask {
     /**
      * Source sets to process
      */
-    @Input
     private List<String> sourceSets = Collections.emptyList();
 
     /**
      * Eclipse Checkstyle settings file
      */
-    @OutputFile
     private @Nullable File settingsFile;
+
+    /**
+     * File operations handler
+     */
+    private final FileOperations files;
+
+    /**
+     * Create a new task
+     *
+     * @param files File operations handler
+     */
+    @Inject
+    public GenerateEclipseCheckstyle(FileOperations files) {
+        this.files = files;
+    }
 
     /**
      * Create the settings file
@@ -111,11 +127,14 @@ public class GenerateEclipseCheckstyle extends ConventionTask {
     protected void appendLocalCheckConfigs(Element root) {
         Optional.ofNullable(getSourceSets()).ifPresent(s -> {
             for (String sourceSet : s) {
+                String configFile = getProject()
+                        .relativePath(CheckstyleConfigPlugin.getCheckstyleConfigFile(sourceSet, this.files));
+
                 Element localCheckConfig = root.getOwnerDocument().createElement("local-check-config");
                 root.appendChild(localCheckConfig);
 
                 localCheckConfig.setAttribute("name", String.format("Checkstyle %s configuration", sourceSet));
-                localCheckConfig.setAttribute("location", String.format("src/%s/checkstyle/checkstyle.xml", sourceSet));
+                localCheckConfig.setAttribute("location", configFile);
                 localCheckConfig.setAttribute("type", "project");
                 localCheckConfig.setAttribute("description", "");
 
@@ -171,6 +190,7 @@ public class GenerateEclipseCheckstyle extends ConventionTask {
      *
      * @return Eclipse Checkstyle settings file
      */
+    @OutputFile
     public @Nullable File getSettingsFile() {
         return this.settingsFile;
     }
@@ -189,6 +209,7 @@ public class GenerateEclipseCheckstyle extends ConventionTask {
      *
      * @return Source sets to process
      */
+    @Input
     public @Nullable List<String> getSourceSets() {
         return this.sourceSets;
     }

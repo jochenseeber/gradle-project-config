@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.project.base;
 
 import java.io.PrintStream;
@@ -61,6 +62,7 @@ import org.gradle.model.RuleSource;
 import org.gradle.model.internal.core.Hidden;
 import org.gradle.util.GradleVersion;
 
+import com.dorongold.gradle.tasktree.TaskTreePlugin;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 
@@ -396,6 +398,8 @@ public class ProjectConfigPlugin extends AbstractProjectConfigPlugin {
     @Override
     protected void initialize() {
         checkGradleVersion();
+
+        getProject().getPlugins().apply(TaskTreePlugin.class);
 
         ProjectContext context = new ProjectContext(getProject());
         getProject().getExtensions().add("projectContext", context);

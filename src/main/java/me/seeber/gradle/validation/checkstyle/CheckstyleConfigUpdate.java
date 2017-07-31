@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.validation.checkstyle;
 
 import java.io.File;
@@ -33,11 +34,13 @@ import java.io.IOException;
 import org.eclipse.jdt.annotation.Nullable;
 import org.gradle.api.internal.ConventionTask;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.TaskAction;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+
+import me.seeber.gradle.util.Validate;
 
 /**
  * Update checkstyle configuration
@@ -47,28 +50,29 @@ public class CheckstyleConfigUpdate extends ConventionTask {
     /**
      * Checkstyle configuration
      */
-    @Input
     private @Nullable String config;
 
     /**
      * Checkstyle configuration file to write
      */
-    @OutputFile
     private @Nullable File configFile;
 
     /**
      * Write the checkstyle configuration
-     * 
+     *
      * @throws IOException if something goes wrong
      */
     @TaskAction
     public void updateConfig() throws IOException {
-        Files.write(this.config, this.configFile, Charsets.UTF_8);
+        File configFile = Validate.notNull(this.configFile, "Please set the configuration file");
+
+        configFile.getParentFile().mkdirs();
+        Files.asCharSink(configFile, Charsets.UTF_8).write(this.config);
     }
 
     /**
      * Get the checkstyle configuration file to write
-     * 
+     *
      * @return Checkstyle configuration file to write
      */
     public @Nullable File getConfigFile() {
@@ -77,7 +81,7 @@ public class CheckstyleConfigUpdate extends ConventionTask {
 
     /**
      * Set the Checkstyle configuration file to write
-     * 
+     *
      * @param configFile Checkstyle configuration file to write
      */
     public void setConfigFile(@Nullable File configFile) {
@@ -86,18 +90,20 @@ public class CheckstyleConfigUpdate extends ConventionTask {
 
     /**
      * Get the Checkstyle configuration
-     * 
+     *
      * @return Checkstyle configuration
      */
+    @Input
     public @Nullable String getConfig() {
         return this.config;
     }
 
     /**
      * Set the Checkstyle configuration
-     * 
+     *
      * @param config Checkstyle configuration
      */
+    @InputFile
     public void setConfig(@Nullable String config) {
         this.config = config;
     }
