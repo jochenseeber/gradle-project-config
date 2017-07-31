@@ -94,6 +94,7 @@ else {
 
 dependencies {
     compile(group: "com.google.guava", name: "guava", version: "22.0")
+    compile(group: "gradle.plugin.com.dorongold.plugins", name: "task-tree", version: "1.3")
     compile(group: "net.bytebuddy", name: "byte-buddy", version: "1.5.7")
 
     if(project.hasProperty("bootstrap")) {
@@ -122,22 +123,3 @@ if(project.hasProperty("bootstrap")) {
         jcenter()
     }
 }
-
-configurations {
-    ecj
-}
-
-/*
-tasks.withType(JavaCompile).all { JavaCompile t ->
-    t.options.fork = true
-    // t.options.compilerArgs = ['-target', t.targetCompatibility, '-source', t.sourceCompatibility]
-    t.options.compilerArgs = ['-properties', '.settings/org.eclipse.jdt.core.prefs']
-    println "==>${t.options.compilerArgs}"
-    t.options.forkOptions.with {
-        executable = 'java'
-        jvmArgs = ['-classpath', project.configurations.ecj.asPath, 'org.eclipse.jdt.internal.compiler.batch.Main', '-nowarn']
-    }
-}
-
-println("==> ${tasks.compileTestJava.class.name}")
-*/
