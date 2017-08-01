@@ -452,22 +452,23 @@ public class JavaConfigPlugin extends AbstractProjectConfigPlugin {
         configureIntegrationTests();
     }
 
+    /**
+     * Configure integration tests
+     */
     protected void configureIntegrationTests() {
         JavaPluginConvention javaConvention = getProject().getConvention().getPlugin(JavaPluginConvention.class);
 
-        SourceSet integrationSources = javaConvention.getSourceSets().create("integration", s -> {
-            // s.compiledBy("compileIntegrationJava");
-        });
-
+        SourceSet integrationSources = javaConvention.getSourceSets().create(INTEGRATION_SOURCE_SET_NAME);
         SourceSet mainSources = javaConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 
         @SuppressWarnings("deprecation") Configuration compile = getProject().getConfigurations()
-                .getAt(JavaPlugin.COMPILE_CONFIGURATION_NAME);
+                .getByName(JavaPlugin.COMPILE_CONFIGURATION_NAME);
         @SuppressWarnings("deprecation") Configuration runtime = getProject().getConfigurations()
-                .getAt(JavaPlugin.RUNTIME_CONFIGURATION_NAME);
+                .getByName(JavaPlugin.RUNTIME_CONFIGURATION_NAME);
         Configuration implementation = getProject().getConfigurations()
-                .getAt(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME);
-        Configuration runtimeOnly = getProject().getConfigurations().getAt(JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME);
+                .getByName(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME);
+        Configuration runtimeOnly = getProject().getConfigurations()
+                .getByName(JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME);
 
         Configuration integrationCompileClasspath = getProject().getConfigurations()
                 .getByName(INTEGRATION_COMPILE_CLASSPATH_CONFIGURATION);

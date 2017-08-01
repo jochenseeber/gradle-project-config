@@ -51,6 +51,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.XmlProvider;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.PublishArtifact;
@@ -64,6 +65,7 @@ import org.gradle.api.plugins.WarPlugin;
 import org.gradle.api.tasks.Delete;
 import org.gradle.model.Defaults;
 import org.gradle.model.Each;
+import org.gradle.model.Finalize;
 import org.gradle.model.Model;
 import org.gradle.model.ModelMap;
 import org.gradle.model.Mutate;
@@ -74,8 +76,10 @@ import org.gradle.plugins.ide.eclipse.EclipsePlugin;
 import org.gradle.plugins.ide.eclipse.EclipseWtpPlugin;
 import org.gradle.plugins.ide.eclipse.GenerateEclipseClasspath;
 import org.gradle.plugins.ide.eclipse.GenerateEclipseJdt;
+import org.gradle.plugins.ide.eclipse.model.Classpath;
 import org.gradle.plugins.ide.eclipse.model.EclipseClasspath;
 import org.gradle.plugins.ide.eclipse.model.EclipseModel;
+import org.gradle.plugins.ide.eclipse.model.Library;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -321,6 +325,36 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
             classpath.setDownloadJavadoc(true);
             classpath.getContainers().remove(EclipseWtpPlugin.WEB_LIBS_CONTAINER);
             classpath.getFile().withXml(xml -> eclipseConfigPlugin.configureClasspathXml(Validate.notNull(xml)));
+        }
+
+        /**
+         * @param eclipseClasspath
+         * @param eclipseConfigPlugin
+         * @param configurations
+         */
+        @Finalize
+        public void finalizeEclipseClasspathTask(@Each GenerateEclipseClasspath eclipseClasspath,
+                EclipseConfigPlugin eclipseConfigPlugin, ConfigurationContainer configurations) {
+            EclipseClasspath classpath = eclipseClasspath.getClasspath();
+
+            Configuration integrationCompileConfiguration = configurations.getAsMap()
+                    .get(JavaConfigPlugin.INTEGRATION_COMPILE_CLASSPATH_CONFIGURATION);
+
+            if (integrationCompileConfiguration != null) {
+                classpath.getPlusConfigurations().add(integrationCompileConfiguration);
+            }
+
+            Configuration integrationRuntimeConfiguration = configurations.getAsMap()
+                    .get(JavaConfigPlugin.INTEGRATION_RUNTIME_CLASSPATH_CONFIGURATION);
+
+            if (integrationRuntimeConfiguration != null) {
+                classpath.getPlusConfigurations().add(integrationRuntimeConfiguration);
+            }
+
+            classpath.getFile().whenMerged((Classpath c) -> {
+                c.getEntries().removeIf(e -> (e instanceof Library)
+                        && Files.getFileExtension(((Library) e).getPath()).equalsIgnoreCase("pom"));
+            });
         }
 
         /**
