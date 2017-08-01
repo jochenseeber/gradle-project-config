@@ -29,10 +29,12 @@
 package me.seeber.gradle.project.base;
 
 import java.io.File;
+import java.util.concurrent.Callable;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.BasePluginConvention;
+import org.gradle.api.provider.Provider;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Converter;
@@ -169,6 +171,17 @@ public class ProjectContext {
      */
     public File getBuildDir() {
         return this.project.getBuildDir();
+    }
+
+    /**
+     * Create a provider from a {@link Callable}
+     *
+     * @param callable Callable to provide value
+     * @return Provider
+     */
+    public <T> Provider<T> provider(Callable<T> callable) {
+        Provider<T> provider = this.project.provider(callable);
+        return provider;
     }
 
 }

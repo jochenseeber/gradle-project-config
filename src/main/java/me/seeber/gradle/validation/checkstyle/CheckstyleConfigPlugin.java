@@ -44,6 +44,7 @@ import org.gradle.api.plugins.quality.CheckstylePlugin;
 import org.gradle.language.base.ProjectSourceSet;
 import org.gradle.language.java.JavaSourceSet;
 import org.gradle.model.Defaults;
+import org.gradle.model.Finalize;
 import org.gradle.model.Model;
 import org.gradle.model.ModelMap;
 import org.gradle.model.Mutate;
@@ -55,6 +56,7 @@ import org.gradle.plugins.ide.eclipse.model.EclipseProject;
 import me.seeber.gradle.plugin.AbstractProjectConfigPlugin;
 import me.seeber.gradle.project.base.ProjectConfig;
 import me.seeber.gradle.project.base.ProjectConfigPlugin;
+import me.seeber.gradle.project.base.ProjectContext;
 import me.seeber.gradle.project.base.VersionControl;
 import me.seeber.gradle.util.Classes;
 import me.seeber.gradle.util.Tasks;
@@ -155,29 +157,27 @@ public class CheckstyleConfigPlugin extends AbstractProjectConfigPlugin {
          * @param checkstyleConfig Checkstyle configuration
          * @param sources Source sets
          * @param files
+         * @param context
          */
-        @Mutate
-        public void createCheckstyleTasks(ModelMap<Checkstyle> tasks, CheckstyleConfig checkstyleConfig,
-                ProjectSourceSet sources, FileOperations files) {
+        @Finalize
+        public void configureCheckstyleTasks(ModelMap<Checkstyle> tasks, CheckstyleConfig checkstyleConfig,
+                ProjectSourceSet sources, FileOperations files, ProjectContext context) {
             for (JavaSourceSet source : sources.withType(JavaSourceSet.class)) {
                 String taskName = getCheckstyleTaskName(source);
 
                 if (!checkstyleConfig.getIgnoreSourceSets().contains(source.getParentName())) {
-                    Checkstyle task = tasks.get(taskName);
-
-                    if (task != null) {
+                    tasks.named(taskName, t -> {
                         File checkstyleConfigFile = getCheckstyleConfigFile(source.getParentName(), files);
 
-                        task.setGroup(JavaBasePlugin.VERIFICATION_GROUP);
+                        t.setGroup(JavaBasePlugin.VERIFICATION_GROUP);
+                        t.setConfigFile(checkstyleConfigFile);
 
-                        if (checkstyleConfigFile.exists()) {
-                            task.setConfigFile(checkstyleConfigFile);
+                        if (checkstyleConfigFile.getParentFile() != null) {
+                            t.setConfigDir(context.provider(() -> checkstyleConfigFile.getParentFile()));
                         }
 
-                        if (task.getConfigFile() != null && task.getConfigFile().getParentFile() != null) {
-                            task.getConfigProperties().putIfAbsent("config_loc", task.getConfigFile().getParent());
-                        }
-                    }
+                        t.dependsOn(getUpdateConfigTaskName(source));
+                    });
                 }
             }
         }
