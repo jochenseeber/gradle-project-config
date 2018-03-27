@@ -93,7 +93,6 @@ import com.google.common.io.Resources;
 
 import groovy.text.SimpleTemplateEngine;
 import groovy.text.TemplateEngine;
-import me.seeber.gradle.ide.eclipse.annotations.EclipseAnnotationsTask;
 import me.seeber.gradle.plugin.AbstractProjectConfigPlugin;
 import me.seeber.gradle.plugin.Projects;
 import me.seeber.gradle.plugin.Projects.ProjectElement;
@@ -126,37 +125,9 @@ import me.seeber.gradle.util.Validate;
 public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
 
     /**
-     * Expression to select the annotationpath attribute of a classpathentry
-     */
-    protected static final XPathExpression ANNOTATIONPATH_XPATH;
-
-    /**
-     * Expression to select the ignore_optional_problems attribute of a classpathentry
-     */
-    protected static final XPathExpression IGNORE_OPTIONAL_PROBLEMS_XPATH;
-
-    /**
      * Pattern to detect the Gradle jar
      */
     protected static final Pattern GRADLE_JAR_PATTERN = Pattern.compile("/gradle-api-[0-9]+(?:\\.[0-9]+)*\\.jar$");
-
-    /**
-     * Name of configuration for the {@link EclipseAnnotationsTask}
-     */
-    public static final String ECLIPSE_ANNOTATIONS_CONFIGURATION = "eclipseAnnotations";
-
-    static {
-        try {
-            XPathFactory xpathFactory = XPathFactory.newInstance();
-            XPath xpath = xpathFactory.newXPath();
-            ANNOTATIONPATH_XPATH = xpath.compile("attribute[@name = 'annotationpath'][1]");
-            IGNORE_OPTIONAL_PROBLEMS_XPATH = xpath.compile("attribute[@name = 'ignore_optional_problems'][1]");
-        }
-        catch (XPathExpressionException e) {
-            Throwables.throwIfUnchecked(e);
-            throw new RuntimeException(e);
-        }
-    }
 
     /**
      * Model rules of the plugin
@@ -233,48 +204,15 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
         }
 
         /**
-         * Create Eclipse annotations tasks
-         *
-         * @param tasks Task container
-         * @param configurations Container to access configurations
-         * @param buildDir Build directory
-         */
-        @Mutate
-        public void createEclipseAnnotationsTasks(ModelMap<Task> tasks, ConfigurationContainer configurations,
-                @Path("buildDir") File buildDir) {
-            tasks.create("eclipseAnnotations", EclipseAnnotationsTask.class, t -> {
-                t.setDescription("Generates external nullability annotations for dependencies.");
-                t.setGroup("IDE");
-
-                ConventionMapping parameters = t.getConventionMapping();
-                parameters.map("jars", () -> {
-                    Set<File> jars = configurations.stream()
-                            .filter(c -> c.isCanBeResolved()
-                                    && !c.getName().equals(JavaConfigPlugin.ANNOTATIONS_CONFIGURATION))
-                            .map(c -> c.getResolvedConfiguration().getLenientConfiguration())
-                            .flatMap(c -> c.getArtifacts().stream().filter(
-                                    a -> !(a.getId().getComponentIdentifier() instanceof ProjectComponentIdentifier)
-                                            && a.getType().equals("jar"))
-                                    .map(a -> a.getFile()))
-                            .collect(Collectors.toSet());
-
-                    return jars;
-                });
-            });
-        }
-
-        /**
          * Make task 'eclipse' depend on 'eclipseUi'
          *
          * @param eclipse Eclipse task
          * @param eclipseUi Eclipse UI task
-         * @param eclipseAnnotations Eclipse annotations task
          */
         @Mutate
         public void configureEclipseTask(@org.gradle.model.Path("tasks.eclipse") Task eclipse,
-                @org.gradle.model.Path("tasks.eclipseUi") Task eclipseUi,
-                @org.gradle.model.Path("tasks.eclipseAnnotations") Task eclipseAnnotations) {
-            eclipse.dependsOn(eclipseUi, eclipseAnnotations);
+                @org.gradle.model.Path("tasks.eclipseUi") Task eclipseUi) {
+            eclipse.dependsOn(eclipseUi);
         }
 
         /**
@@ -408,18 +346,6 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
         getProject().getPlugins().withType(WarPlugin.class, war -> {
             getProject().getPlugins().apply(EclipseWtpPlugin.class);
         });
-
-        getProject().getPlugins().withType(JavaPlugin.class, java -> {
-            getProject().getConfigurations().create(ECLIPSE_ANNOTATIONS_CONFIGURATION, c -> {
-                c.setDescription("Classpath used when generating Eclipse external annotations from JAR files");
-                c.setVisible(false);
-                c.setTransitive(true);
-                c.extendsFrom(
-                        getProject().getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
-
-                c.getDependencies().add(getProject().getDependencies().create("com.google.code.findbugs:jsr305:3.0.1"));
-            });
-        });
     }
 
     /**
@@ -438,164 +364,6 @@ public class EclipseConfigPlugin extends AbstractProjectConfigPlugin {
             String path = Nodes.attributeValue(classpathentry, "path");
 
             getLogger().debug("Checking classpath entry '{}' of kind '{}'", path, kind);
-
-            switch (kind) {
-                case "lib": {
-                    if (GRADLE_JAR_PATTERN.matcher(path).find()) {
-                        configureLibraryEntry((Element) classpathentry, path, "gradle-api-annotations");
-                    }
-                    else {
-                        File file = new File(path);
-                        Optional<ProjectElement<ResolvedArtifact>> artifact = Projects.findResolvedArtifact(
-                                getProject().getAllprojects(), p -> true, a -> a.getFile().equals(file));
-
-                        artifact.ifPresent(a -> {
-                            getLogger().debug("Resolved classpath to artifact '{}'", a.getElement().getId());
-
-                            configureLibraryEntry((Element) classpathentry, path,
-                                    a.getElement().getName() + "-annotations");
-                        });
-                    }
-
-                    break;
-                }
-
-                case "con": {
-                    if (path.startsWith("org.eclipse.jdt.launching.JRE_CONTAINER/")) {
-                        configureLibraryEntry((Element) classpathentry, path, "jdk-annotations");
-                    }
-
-                    break;
-                }
-
-                case "src": {
-                    configureSourceEntry((Element) classpathentry);
-                }
-            }
         }
     }
-
-    /**
-     * Find the annotation path for a classpath entry
-     *
-     * Looks for a matching dependency and returns the path to the annotations jar for an external module dependency, or
-     * the source directory for a project dependency
-     *
-     * @param path Path of classpath entry
-     * @param annotationsProjectName Annotation project name
-     * @return Annotation path
-     */
-    protected Optional<File> findAnnotationPath(String path, String annotationsProjectName) {
-        Optional<File> annotationPath = Optional.empty();
-
-        // Check if the annotations project is in the build
-        Project annotationsProject = getProject().getRootProject().findProject(annotationsProjectName);
-
-        if (annotationsProject != null) {
-            Optional<ProjectElement<PublishArtifact>> publishInfo = Projects.findPublishArtifact(annotationsProject,
-                    c -> c.getName().equals(Dependency.ARCHIVES_CONFIGURATION),
-                    a -> Objects.equals(a.getName(), annotationsProjectName) && Strings.isNullOrEmpty(a.getClassifier())
-                            && Objects.equals(a.getType(), "jar"));
-
-            annotationPath = publishInfo.map(i -> new File("/" + annotationsProject.getName() + "/src/main/resources"));
-        }
-
-        // Check if the annotations jar is in our dependencies
-        if (!annotationPath.isPresent()) {
-            Optional<ProjectElement<ResolvedArtifact>> resolutionInfo = Projects.findResolvedArtifact(
-                    getProject().getAllprojects(), c -> c.getName().equals(JavaConfigPlugin.ANNOTATIONS_CONFIGURATION),
-                    a -> Objects.equals(a.getName(), annotationsProjectName) && Strings.isNullOrEmpty(a.getClassifier())
-                            && Objects.equals(a.getType(), "jar"));
-
-            annotationPath = resolutionInfo.map(i -> i.getElement().getFile());
-        }
-
-        // Check if an annotations zip was created by the eclipseAnnotations task
-        if (!annotationPath.isPresent()) {
-            String annotationsZipName = Files.getNameWithoutExtension(path) + "-annotations.zip";
-            File annotationsZipPath = new File(getProject().getBuildDir(), "annotations/" + annotationsZipName);
-
-            if (annotationsZipPath.isFile() && annotationsZipPath.length() > 0) {
-                annotationPath = Optional.of(annotationsZipPath);
-            }
-        }
-
-        return annotationPath;
-    }
-
-    /**
-     * Configure a 'lib' entry in the classpath
-     *
-     * <ul>
-     * <li>Search for the annotations project and if found configure the annotations path
-     * </ul>
-     *
-     * @param entry Classpath entry element
-     * @param path Path of classpath entry
-     * @param annotationsProjectName Name of the annotations project for this entry
-     */
-    protected void configureLibraryEntry(Element entry, String path, String annotationsProjectName) {
-        getLogger().debug("Searching for annotations library '{}'", annotationsProjectName);
-
-        Optional<File> annotationPath = findAnnotationPath(path, annotationsProjectName);
-
-        annotationPath.ifPresent(p -> {
-            getLogger().debug("Adding annotations library '{}' with path '{}'", p, p.getPath());
-
-            try {
-                Element attributes = Nodes.child(entry, "attributes");
-                Element attribute = (Element) ANNOTATIONPATH_XPATH.evaluate(attributes, XPathConstants.NODE);
-
-                if (attribute == null) {
-                    @NonNull Document document = Validate.notNull(attributes.getOwnerDocument(),
-                            "The element's document must not be null");
-                    attribute = document.createElement("attribute");
-                    attribute.setAttribute("name", "annotationpath");
-                    attributes.appendChild(attribute);
-                }
-
-                attribute.setAttribute("value", p.getPath());
-            }
-            catch (XPathExpressionException e) {
-                Throwables.throwIfUnchecked(e);
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    /**
-     * Configure a 'src' entry in the classpath
-     *
-     * <ul>
-     * <li>If the source directory is inside the build directory, enable ignoring optional compile problems
-     * </ul>
-     *
-     * @param entry Classpath entry element
-     */
-    protected void configureSourceEntry(Element entry) {
-        String path = Nodes.attributeValue(entry, "path");
-        File resolvedBuildDir = getProject().file(path);
-
-        if (resolvedBuildDir.getPath().startsWith(getProject().getBuildDir().getPath())) {
-            try {
-                Element attributes = Nodes.child(entry, "attributes");
-                Element attribute = (Element) IGNORE_OPTIONAL_PROBLEMS_XPATH.evaluate(attributes, XPathConstants.NODE);
-
-                if (attribute == null) {
-                    @NonNull Document document = Validate.notNull(attributes.getOwnerDocument(),
-                            "The element's document must not be null");
-                    attribute = document.createElement("attribute");
-                    attribute.setAttribute("name", "ignore_optional_problems");
-                    attributes.appendChild(attribute);
-                }
-
-                attribute.setAttribute("value", Boolean.toString(true));
-            }
-            catch (XPathExpressionException e) {
-                Throwables.throwIfUnchecked(e);
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
 }
