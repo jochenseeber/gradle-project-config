@@ -13,12 +13,12 @@ buildscript {
             classpath group: "me.seeber.gradle", name: "gradle-github-config", version: "1.1.1"
             classpath group: "me.seeber.gradle", name: "gradle-license-config", version: "1.1.1"
             classpath group: "me.seeber.gradle", name: "gradle-plugin-publish-config", version: "1.1.1"
-            classpath group: "me.seeber.gradle", name: "gradle-project-config", version: "1.2.0-SNAPSHOT"
+            classpath group: "me.seeber.gradle", name: "gradle-project-config", version: "1.1.1"
         }
     }
 }
 
-version = "1.2.0-SNAPSHOT"
+version = "1.1.1"
 group = "me.seeber.gradle"
 description = "Default configuration for Gradle builds"
 
@@ -69,11 +69,6 @@ else {
                 displayName = "Configuration for Eclipse IDE"
             }
 
-            annotationProjectPlugin {
-                id = "me.seeber.project.annotations"
-                displayName = "Configuration for External Annotations Projects"
-            }
-
             gradlePluginProjectPlugin {
                 id = "me.seeber.project.gradle-plugin"
                 displayName = "Configuration for Gradle Plugin Projects"
@@ -96,23 +91,6 @@ dependencies {
     compile(group: "com.google.guava", name: "guava", version: "22.0")
     compile(group: "gradle.plugin.com.dorongold.plugins", name: "task-tree", version: "1.3")
     compile(group: "net.bytebuddy", name: "byte-buddy", version: "1.5.7")
-
-    if(project.hasProperty("bootstrap")) {
-        compile(gradleApi())
-        compile(localGroovy())
-
-        compileOnly(group: "org.eclipse.jdt", name: "org.eclipse.jdt.annotation", version: "2.0.0")
-
-        testCompile(gradleTestKit())
-        testCompile(group: "me.seeber.gradle", name: "gradle-test-kit", version: "1.1.1")
-
-        testCompileOnly(group: "org.eclipse.jdt", name: "org.eclipse.jdt.annotation", version: "2.0.0")
-    }
-    else {
-        annotations(group: "me.seeber.annotations", name: "gradle-api-annotations", version: "3.1-r.3")
-        annotations(group: "me.seeber.annotations", name: "jdk-annotations", version: "1.8.0-r.3")
-        annotations(group: "me.seeber.annotations", name: "byte-buddy-annotations", version: "1.4.30-r.3")
-    }
 }
 
 if(project.hasProperty("bootstrap")) {
