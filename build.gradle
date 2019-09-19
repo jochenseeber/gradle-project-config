@@ -9,16 +9,16 @@ buildscript {
 
     dependencies {
         if(!project.hasProperty("bootstrap")) {
-            classpath group: "me.seeber.gradle", name: "gradle-bintray-config", version: "1.1.1"
-            classpath group: "me.seeber.gradle", name: "gradle-github-config", version: "1.1.1"
-            classpath group: "me.seeber.gradle", name: "gradle-license-config", version: "1.1.1"
-            classpath group: "me.seeber.gradle", name: "gradle-plugin-publish-config", version: "1.1.1"
-            classpath group: "me.seeber.gradle", name: "gradle-project-config", version: "1.1.1"
+            classpath group: "me.seeber.gradle", name: "gradle-bintray-config", version: "1.1.2"
+            classpath group: "me.seeber.gradle", name: "gradle-github-config", version: "1.1.2"
+            classpath group: "me.seeber.gradle", name: "gradle-license-config", version: "1.1.2"
+            classpath group: "me.seeber.gradle", name: "gradle-plugin-publish-config", version: "1.1.2"
+            classpath group: "me.seeber.gradle", name: "gradle-project-config", version: "1.1.2"
         }
     }
 }
 
-version = "1.1.1"
+version = "1.1.2"
 group = "me.seeber.gradle"
 description = "Default configuration for Gradle builds"
 
@@ -103,14 +103,14 @@ dependencies {
         compileOnly(group: "org.eclipse.jdt", name: "org.eclipse.jdt.annotation", version: "2.0.0")
 
         testCompile(gradleTestKit())
-        testCompile(group: "me.seeber.gradle", name: "gradle-test-kit", version: "1.1.1")
+        testCompile(group: "me.seeber.gradle", name: "gradle-test-kit", version: "1.1.2")
 
         testCompileOnly(group: "org.eclipse.jdt", name: "org.eclipse.jdt.annotation", version: "2.0.0")
     }
     else {
-        annotations(group: "me.seeber.annotations", name: "gradle-api-annotations", version: "3.1-r.3")
-        annotations(group: "me.seeber.annotations", name: "jdk-annotations", version: "1.8.0-r.3")
-        annotations(group: "me.seeber.annotations", name: "byte-buddy-annotations", version: "1.4.30-r.3")
+        annotations(group: "me.seeber.annotations", name: "gradle-api-annotations", version: "3.1-r.4")
+        annotations(group: "me.seeber.annotations", name: "jdk-annotations", version: "1.8.0-r.4")
+        annotations(group: "me.seeber.annotations", name: "byte-buddy-annotations", version: "1.4.30-r.4")
     }
 }
 
