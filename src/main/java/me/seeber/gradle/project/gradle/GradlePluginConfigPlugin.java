@@ -25,14 +25,17 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package me.seeber.gradle.project.gradle;
 
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
-import org.gradle.model.Defaults;
+import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.model.Each;
+import org.gradle.model.Model;
 import org.gradle.model.Mutate;
 import org.gradle.model.RuleSource;
+import org.gradle.model.internal.core.Hidden;
 import org.gradle.plugin.devel.GradlePluginDevelopmentExtension;
 import org.gradle.plugin.devel.plugins.JavaGradlePluginPlugin;
 
@@ -52,26 +55,27 @@ public class GradlePluginConfigPlugin extends AbstractProjectConfigPlugin {
     public static class PluginRules extends RuleSource {
 
         /**
-         * Initialize the Gradle plugin extension
-         *
-         * @param pluginExtension Gradle plugin extension to initialize
-         */
-        @Defaults
-        public void initializeGradlePluginDevelopmentExtension(GradlePluginDevelopmentExtension pluginExtension) {
-            pluginExtension.setAutomatedPublishing(false);
-        }
-
-        /**
          * Configure the eclipse task
          *
          * @param task Task to configure
-         * @param pluginExtension Plugin extension
          */
         @Mutate
-        public void configureTasks(@Each Task task, GradlePluginDevelopmentExtension pluginExtension) {
+        public void configureTasks(@Each Task task) {
             if (task.getName().equals("eclipse")) {
                 task.dependsOn("pluginUnderTestMetadata");
             }
+        }
+
+        /**
+         * Provide the plugin bundle extension of the Java Plugin Plugin
+         *
+         * @param extensions Extension container to get extension
+         * @return Plugin bundle extension
+         */
+        @Model
+        @Hidden
+        public GradlePluginDevelopmentExtension gradlePluginDevelopmentExtension(ExtensionContainer extensions) {
+            return extensions.getByType(GradlePluginDevelopmentExtension.class);
         }
 
     }
@@ -91,6 +95,6 @@ public class GradlePluginConfigPlugin extends AbstractProjectConfigPlugin {
         dependencies.add("compile", dependencies.localGroovy());
 
         dependencies.add("testCompile", dependencies.gradleTestKit());
-        dependencies.add("testCompile", "me.seeber.gradle:gradle-test-kit:1.1.1");
+        dependencies.add("testCompile", "me.seeber.gradle:gradle-test-kit:1.1.2");
     }
 }
